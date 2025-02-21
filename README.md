@@ -10,6 +10,23 @@ The manual way of doing it is to create a nix flake and populate its inputs with
 
 With this project, we could instead read the project's dependencies during evaluation, and automatically fetch theses dependencies using [`fetchurl`](https://nixos.org/manual/nixpkgs/stable/#sec-pkgs-fetchers-fetchurl) with the correct hash and version. It would then be very painless to maintain a flake for any zig project.
 
+## Usage
+
+The recomended way of using this is through flakes. Simply add this into your inputs and use its `parse` output:
+```nix
+{
+    inputs.nix-zon-parser.url = "github:Jeansidharta/nix-zon-parser";
+    outputs = { nix-zon-parser, ... }: let
+        parsed = nix-zon-parser.parse (builtins.readFile ./build.zig.zon);
+        inherit (parsed) name version dependencies;
+
+        # You can then use these variables to create your derivation
+    in {
+        # Rest of your flake
+    };
+}
+```
+
 ## Issues
 
 The project is not currently very robust. It is not very well tested, and might give weird results if the zon file is not correctly formated. This project is not meant to validate a zon file, but instead to read data from a valid zon file. Therefore, it assumes the file is correctly formated while parsing it. If you encounter any issues using it, please open an issue.
