@@ -31,6 +31,10 @@ The recomended way of using this is through flakes. Simply add this into your in
 
 The project is not currently very robust. It is not very well tested, and might give weird results if the zon file is not correctly formated. This project is not meant to validate a zon file, but instead to read data from a valid zon file. Therefore, it assumes the file is correctly formated while parsing it. If you encounter any issues using it, please open an issue.
 
+## Testing
+
+The `test.sh` script should run all automated tests.
+
 ## Comparison with Zon2nix
 
 [zon2nix](https://github.com/nix-community/zon2nix) is a project that is similar in spirit, but has a very different purpose.
