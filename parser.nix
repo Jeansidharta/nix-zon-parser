@@ -26,6 +26,9 @@ let
   # Skip from str the length of prefix
   skipPrefix = prefix: str: skip (stringLength prefix) str;
 
+  # Used for easier debugging
+  # traceElem = e: builtins.trace e e;
+
   textWithoutComments =
     let
       # Given a line, remove any comments from it. This will look for any
@@ -34,21 +37,48 @@ let
         line:
         let
           # Split the line at any <quote> character that's not escaped.
-          # TODO - this might fail if there is an even number of <backslash> characters
-          # before the quote. Ex: \\" is not actually escaping the quote, but this line
-          # will interpret as if it is. \\\" Is escaping the quote. \\\\" Is not.
-          quotePieces = filter isString (split ''[^\\]?"'' line);
-          # Make sure there are an odd number of pieces. An even number would mean there
-          # is an unclosed quote.
-          quotePieces' =
-            if isOdd (length quotePieces) then quotePieces else throw "Unclosed quotes at ${line}";
-          last = elemAt quotePieces' (length quotePieces' - 1);
-          # Remove any comments from the last quote piece
-          lastNoComment = head (orElse (match "^(([^/][^/])*)//.*" last) [ last ]);
-          # Get the part of the line that does not contain the last quote piece.
-          beginning = substring 0 (stringLength line - stringLength last) line;
+          quotePieces = filter isString (split "\"" line);
+
+          # Check if character a index `charIndex` inside the string is escaped.
+          # Note that <backslashes> can escape other <backslashes>. This means \\" is
+          # not actually escaping the quote, but \\\" is. \\\\" Is not.
+          isEscaped =
+            str: charIndex:
+            if charIndex == 0 then
+              false
+            else if substring (charIndex - 1) 1 str == "\\" then
+              !(isEscaped str (charIndex - 1))
+            else
+              true;
+
+          # Takes in the line that was split by quotes and check the parts outside
+          # quotes for comments. If a part has a comment, it is removed and all further
+          # parts are ignored. This helper function is here because it is recursive.
+          removeCommentsHelper =
+            pieces: n: isInsideQuote: result:
+            if n >= length pieces then
+              result
+            else
+              (
+                let
+                  piece = elemAt pieces n;
+                  matchComment = match "^([^/][^/])*//.*" piece;
+                in
+                # Check if the split quote was actually escaped. If it was, call the function
+                # again on the next piece, but don't change the `isInsideQuote` value.
+                if isInsideQuote && (isEscaped piece (stringLength piece)) then
+                  removeCommentsHelper pieces (n + 1) isInsideQuote (result ++ [ piece ])
+                else if isInsideQuote || matchComment == null then
+                  removeCommentsHelper pieces (n + 1) (!isInsideQuote) (result ++ [ piece ])
+                else
+                  result ++ [ (head matchComment) ]
+              );
+          # Removes the comment pieces from the line and concatenate it all
+          # again using quotes as separators.
+          removeComments = pieces: concatStringsSep "\"" (removeCommentsHelper pieces 0 false [ ]);
         in
-        "${beginning}${lastNoComment}";
+        # Get the part of the line that does not contain the last quote piece.
+        removeComments quotePieces;
 
       lines = filter isString (split "\n" string);
       linesNoComments = map stripCommentsFromLine lines;
